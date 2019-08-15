@@ -1,0 +1,29 @@
+{
+  "name": "openid-ssi_login",
+  "version": "1.0.0",
+  "description": "Self-sovereign Identity based authentication for OpenID Connect",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://git.snet.tu-berlin.de/blockchain/dims/openid-ssi_login.git"
+  },
+  "keywords": [
+    "OpenID",
+    "Connect",
+    "Self-sovereign",
+    "Identity",
+    "Hyperledger",
+    "Indy"
+  ],
+  "author": "Zoltan Andras Lux",
+  "license": "ISC",
+  "dependencies": {
+    "@panva/jose": "^1.6.1",
+    "express": "^4.17.1",
+    "oidc-provider": "^6.4.1"
+  },
+  "devDependencies": {}
+}
