@@ -109,6 +109,16 @@
         color: #999;
       }
 
+      #qrcode {
+        width: 256px;
+        height: 256px;
+        margin: 10px auto;
+      }
+
+      #ticket-form {
+        display: none;
+      }
+
       ul {
         font-weight: 100;
         padding-left: 1em;
@@ -130,9 +140,14 @@
       <% if (flash) { %>
         <p><%= flash %></p>
       <% } %>
-      <form autocomplete="off" action="/interaction/<%= uid %>/login" method="post">
+      <div id="qrcode"></div>
+
+      <form id="ticket-form" autocomplete="off" action="/interaction/<%= uid %>/login" method="post">
+        <input required id="ticket-field" type="text" name="ticket" placeholder="Enter a ticket" />
+        <!--
         <input required type="email" name="email" placeholder="Enter an email" <% if (!params.login_hint) { %>autofocus="on"<% } else { %> value="<%= params.login_hint %>" <% } %>>
         <input required type="password" name="password" placeholder="and any password" <% if (params.login_hint) { %>autofocus="on"<% } %>>
+        -->
 
         <button type="submit" class="login login-submit">Sign-in</button>
       </form>
@@ -146,5 +161,29 @@
         <% } %>
       </div>
     </div>
+ 
+    <script src="/qrcode.js" async></script>
+    <script async>
+      const uid = '<%- uid %>';
+      const request = <%- proofrequest %>;
+      const ticketForm = document.getElementById('ticket-form');
+      const ticketField = document.getElementById('ticket-field');
+      console.log(ticketForm);
+
+      document.cookie = 'X-UID=' + uid + '; path=/';
+      const socket = new WebSocket('ws://localhost:3001');
+      socket.onmessage = message => {
+        console.log(message);
+        const event = JSON.parse(message.data)
+        ticketField.value = event.id;
+        ticketForm.submit();
+      };
+
+      const qrcode = new QRCode('qrcode', {
+        text: JSON.stringify(request),
+        width: 256,
+        height: 256
+      });
+    </script>
   </body>
 </html>
