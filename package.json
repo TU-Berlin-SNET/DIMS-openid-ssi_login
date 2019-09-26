@@ -45,7 +45,9 @@
     "openid-client": "^3.7.2"
   },
   "husky": {
-    "hooks": "lint-staged"
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
   },
   "standard.options": {
     "enable": true
@@ -54,5 +56,8 @@
     "extends": [
       "standard"
     ]
+  },
+  "lint-staged": {
+    "*.js": "eslint"
   }
 }
