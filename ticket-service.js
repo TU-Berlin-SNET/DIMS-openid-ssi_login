@@ -2,28 +2,31 @@
  * Ticket Service
  * Matches incoming proofs to uids and sends out events
  */
-const uuidv4 = require('uuid/v4');
-const eventbus = require('./eventbus');
+const uuidv4 = require('uuid/v4')
+const eventbus = require('./eventbus')
+
+// TODO implement dims util polling interval here
+// TODO implement uid<->message matching here
 
 // map uid:proofs
-const tickets = {};
+const tickets = {}
 
-module.exports = exports = {};
+module.exports = exports = {}
 
 exports.receiveProof = proof => {
-  console.log('ticket-service receiveProof', proof);
-  const ticket = { id: uuidv4(), proof };
-  tickets[ticket.id] = ticket;
-  eventbus.emit('ticket.created', ticket);
+  console.log('ticket-service receiveProof', proof)
+  const ticket = { id: uuidv4(), proof }
+  tickets[ticket.id] = ticket
+  eventbus.emit('ticket.created', ticket)
 }
 
 exports.getProof = id => {
-  console.log('ticket-service getProof', id);
+  console.log('ticket-service getProof', id)
   return tickets[id]
 }
 
 exports.getAsClaims = async (ctx, id) => {
-  console.log('ticket-service getAsClaims', id);
+  console.log('ticket-service getAsClaims', id)
   const ticket = tickets[id]
   if (!ticket) {
     return ticket
@@ -31,7 +34,7 @@ exports.getAsClaims = async (ctx, id) => {
   return {
     accountId: ticket.id,
 
-    claims() {
+    claims () {
       return {
         sub: ticket.id,
         given_name: ticket.proof.firstname,
