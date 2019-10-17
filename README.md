@@ -45,4 +45,4 @@ npm run testclient
 
 ### create user failed: Request failed with status code 400
 
-In most cases this is not an issue and only means that the user at the DIMS-API already existed and therefore could be created.
+In most cases this is not an issue and only means that the user at the DIMS-API already exists and therefore could not be created.
