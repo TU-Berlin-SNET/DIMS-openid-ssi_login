@@ -5,9 +5,17 @@
 
 const axios = require('axios')
 // const WebSocket = require('ws')
-const { DIMS_API_USER, DIMS_API_PASS, DIMS_API_WALLET, DIMS_API_URL, /* DIMS_API_WS , */ DIMS_API_POLL_INTERVAL } = require('./config')
 const eventbus = require('./eventbus')
 const Account = require('./account')
+
+const {
+  DIMS_API_USER,
+  DIMS_API_PASS,
+  DIMS_API_WALLET,
+  DIMS_API_URL,
+  // DIMS_API_WS,
+  DIMS_API_POLL_INTERVAL
+} = require('./config')
 
 module.exports = exports = {}
 
@@ -29,7 +37,9 @@ async function apiRequest (method, url, data) {
     const res = await client.request({ method, url, data })
     return res
   } catch (err) {
-    console.log(err.message)
+    if (!err.isAxiosError || err.response.status !== 401) {
+      throw err
+    }
     await exports.login()
   }
   // this time, throw if it fails
@@ -56,9 +66,6 @@ async function apiPost (url, data = {}) {
 }
 
 async function pollPendingRequests () {
-  if (pendingRequests.length > 0) {
-    console.log('pendingRequests', pendingRequests.length)
-  }
   for (let i = pendingRequests.length - 1; i >= 0; i--) {
     const request = pendingRequests[i]
     const data = await pollPendingRequest(request)
@@ -71,25 +78,45 @@ async function pollPendingRequests () {
 
     if (request.type === 'connection' && data.my_did && data.their_did) {
       console.log('request.type === connection')
-      // update account
-      const account = await Account.findByMyDid(data.my_did)
-      console.log('found account', account)
+
+      // create account
+      const account = await Account.register(data.their_did)
+      console.log('created account', account)
+
       account.data.myDid = data.my_did
       account.data.theirDid = data.their_did
-      console.log('updated account')
+      console.log('updated account', account)
+
       // emit event
       eventbus.emit('connection.established', { uid: request.uid, data })
-      // splice request
+
+      // remove from pending requests
       pendingRequests.splice(i, 1)
     }
 
     if (request.type === 'proof' && data.status === 'received') {
       console.log('request.type === proof')
-      // update account with attributes from proof
-      // TODO
+      if (data.isValid) {
+        // find corresponding account with did
+        const account = await Account.findById(undefined, data.did)
+        console.log(account)
+        if (!account) {
+          throw new Error('account not found')
+        }
+
+        const attrs = Object.assign({}, data.proof.requested_proof.revealed_attrs, data.proof.requested_proof.self_attested_attrs)
+        console.log(attrs)
+
+        // update account with attributes from proof
+        Object.entries(attrs).forEach(entry => {
+          const [key, value] = entry
+          account.data[key] = value
+        })
+      }
       // emit event
       eventbus.emit('proof.received', { uid: request.uid, data })
-      // splice request
+
+      // remove from pending requests
       pendingRequests.splice(i, 1)
     }
   }
@@ -108,9 +135,15 @@ exports.setup = async () => {
     // try to create the user, ignore if it fails (maybe the user already exists)
     await client.post('/user', { username: DIMS_API_USER, password: DIMS_API_PASS, wallet: DIMS_API_WALLET })
   } catch (err) {
-    console.log('create user failed', err.message)
+    console.log('create user failed:', err.message)
   }
-  await exports.login()
+
+  try {
+    await exports.login()
+  } catch (err) {
+    console.log('login failed: ', err.message)
+    throw err
+  }
 
   setInterval(pollPendingRequests, DIMS_API_POLL_INTERVAL)
 

@@ -1,0 +1,30 @@
+<div id="qrcode"></div>
+<form id="hidden-form" autocomplete="off" action="/interaction/<%= uid %>/<%= action %>" method="post">
+  <input required id="hidden-form-field" type="text" name="form-field" />
+  <button type="submit" class="login login-submit">Submit</button>
+</form>
+
+<script src="/qrcode.js" async></script>
+<script async>
+  const uid = '<%- uid %>';
+  const qrData = <%- data %>;
+  const form = document.getElementById('hidden-form');
+  const formField = document.getElementById('hidden-form-field');
+
+  document.cookie = 'X-UID=' + uid + '; path=/';
+  const socket = new WebSocket('ws://'+ window.location.hostname + ':3001');
+
+  socket.onmessage = message => {
+    // TODO check message type
+    console.log(message);
+    const event = JSON.parse(message.data)
+    formField.value = event.id;
+    form.submit();
+  };
+
+  const qrcode = new QRCode('qrcode', {
+    text: JSON.stringify(qrData),
+    width: 256,
+    height: 256
+  });
+</script>

@@ -8,12 +8,19 @@
 module.exports = exports = {}
 
 exports.PORT = 3001
-exports.OIDC_URL = 'http://localhost:3000'
+
+exports.OIDC_URL = 'http://localhost:3001'
+
 exports.OIDC_CLIENTS = [
   {
-    client_id: 'dev-client',
+    client_id: 'MedyaMarket',
     client_secret: 'dev-secret',
     redirect_uris: ['http://localhost:3000/cb']
+  },
+  {
+    client_id: 'Pluto',
+    client_secret: 'dev-secret2',
+    redirect_uris: ['http://localhost:3002/cb']
   }
 ]
 

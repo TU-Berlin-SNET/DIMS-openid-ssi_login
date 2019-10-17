@@ -6,11 +6,7 @@
 const WebsocketServer = require('ws').Server
 const eventbus = require('./eventbus')
 
-// const eventBus = require('./eventbus');
-
 const WS_PING_INTERVAL = 30000 // config.APP_WS_PING_INTERVAL;
-
-// TODO add origin check
 
 /**
  * Callback on Pong message from socket
@@ -60,6 +56,22 @@ function livenessCheck () {
   }
 }
 
+async function broadcast (event) {
+  console.log('websocket:eventbus: event received')
+  console.log(event)
+  const message = JSON.stringify(event)
+  const conns = connections[event.uid] || []
+  console.log('conns', conns.length)
+  conns.forEach(conn => {
+    try {
+      console.log('broadcasting event to uid', event.uid)
+      conn.send(message)
+    } catch (err) {
+      console.log('failed to send event', event, err)
+    }
+  })
+}
+
 // key-value map userIds to connections/sockets[]
 const connections = {}
 
@@ -68,43 +80,8 @@ module.exports = httpServer => {
 
   setInterval(livenessCheck, WS_PING_INTERVAL)
 
-  // eventbus.on('ticket.created', async event => {
-  //   console.log('websocket eventbus on ticket.created', event)
-  //   const message = JSON.stringify(event)
-  //   console.log(event)
-  //   const conns = connections[event.proof.uid]
-  //   console.log('conns', conns.length)
-  //   if (conns) {
-  //     conns.forEach(conn => {
-  //       try {
-  //         conn.send(message)
-  //       } catch (err) {
-  //         console.log('failed to send event', event, err)
-  //       }
-  //     })
-  //   }
-  // })
-
-  eventbus.on('connection.established', async event => {
-    console.log('websocket:eventbus: connection.established')
-    console.log(event)
-    const message = JSON.stringify(event)
-    const conns = connections[event.uid] || []
-    console.log('conns', conns.length)
-    conns.forEach(conn => {
-      try {
-        console.log('broadcasting event to uid', event.uid)
-        conn.send(message)
-      } catch (err) {
-        console.log('failed to send event', event, err)
-      }
-    })
-  })
-
-  eventbus.on('proof.received', async event => {
-    console.log('proof.received')
-    // TODO
-  })
+  eventbus.on('connection.established', broadcast)
+  eventbus.on('proof.received', broadcast)
 
   httpServer.on('upgrade', async (req, socket, head) => {
     console.log('http server received upgrade request')

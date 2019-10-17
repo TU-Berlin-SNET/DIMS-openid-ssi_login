@@ -1,15 +1,15 @@
 /**
  * Event Bus
  */
-'use strict';
+'use strict'
 
-const EventEmitter = require('events');
+const EventEmitter = require('events')
 
 /**
  * EventBus Class
  */
 class EventBus extends EventEmitter {}
 
-const eventBus = new EventBus();
+const eventBus = new EventBus()
 
-module.exports = eventBus;
+module.exports = eventBus

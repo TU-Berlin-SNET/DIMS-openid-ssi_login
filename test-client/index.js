@@ -6,17 +6,27 @@
 const config = {
   protocol: 'http',
   host: 'localhost',
-  port: '3000',
+  issuerDiscoveryUrl: 'http://localhost:3001',
+  port: 3000,
   sessionConfig: {
     key: 'dev-secret'
   },
-  issuerDiscoveryUrl: 'http://localhost:3001',
   oidcClient: {
-    client_id: 'dev-client',
+    client_id: 'MedyaMarket',
     client_secret: 'dev-secret',
     redirect_uris: ['http://localhost:3000/cb'],
     response_types: ['code']
   }
+  // port: '3002',
+  // sessionConfig: {
+  //   key: 'dev-secret2'
+  // },
+  // oidcClient: {
+  //   client_id: 'Pluto',
+  //   client_secret: 'dev-secret2',
+  //   redirect_uris: ['http://localhost:3002/cb'],
+  //   response_types: ['code']
+  // }
 }
 
 const Koa = require('koa')
@@ -56,6 +66,7 @@ async function init () {
 <body>
   <div class="flex-container">
     <div class="login-box">
+      <h2>${config.oidcClient.client_id} OpenID Connect Demo</h2>
       <pre>${JSON.stringify(ctx.state.user, null, 4)}</pre>
     </div>
   </div>
@@ -86,7 +97,7 @@ const indexHtml = `
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Medya Market OpenID-Connect Demo</title>
+  <title>${config.oidcClient.client_id} OpenID-Connect Demo</title>
   <style>
     h2 {
       color: red;
@@ -148,7 +159,7 @@ const indexHtml = `
 const loginHtml = `<body>
   <div class="flex-container">
     <div class="login-box">
-      <h2>Medya Market OpenID Connect Demo</h2>
+      <h2>${config.oidcClient.client_id} OpenID Connect Demo</h2>
       <a href="/login" class="login-btn">Login with OIDC</a>
     </div>
   </div>

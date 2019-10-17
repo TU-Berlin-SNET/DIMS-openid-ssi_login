@@ -5,69 +5,23 @@
 
 const Provider = require('oidc-provider')
 const config = require('./config')
+const scopeMapper = require('./scope-mapper')
 const Account = require('./account')
 
-const { Prompt, Check, base } = Provider.interactionPolicy
+// registered prompts, add in order that they should be called
+const prompts = [
+  require('./prompts/select-continue-prompt'),
+  require('./prompts/did-exchange-prompt'),
+  require('./prompts/did-auth-prompt'),
+  require('./prompts/proof-exchange-prompt'),
+  require('./prompts/consent-prompt')
+]
 
-const didexchangePrompt = new Prompt(
-  {
-    name: 'did-exchange',
-    requestable: true
-  },
-  new Check(
-    'did_not_found',
-    'did-exchange prompt was not resolved',
-    'did_exchange_required',
-    ctx => {
-      console.log('did_not_found check')
-      const { oidc } = ctx
-      console.log(oidc.entities.Account)
-      if (!oidc.entities.Account.data.theirDid) {
-        return true
-      }
-      return false
-    }
-  )
-)
-
-const didauthPrompt = new Prompt(
-  {
-    name: 'did-auth',
-    requestable: true
-  },
-  new Check(
-    'did_auth_required',
-    'proof of did ownership required',
-    'interaction_required',
-    ctx => {
-      console.log('did-auth prompt')
-      // TODO check if did-auth is required
-      return false
-    }
-  )
-)
-
-const proofexchangePrompt = new Prompt(
-  {
-    name: 'proof-exchange',
-    requestable: true
-  },
-  new Check(
-    'proof_exchange_required',
-    'proof of attributes/claims required',
-    'interaction_required',
-    ctx => {
-      console.log('proof-exchange prompt')
-      // TODO check if proof-exchange is required
-      return false
-    }
-  )
-)
+const { base } = Provider.interactionPolicy
 
 const policy = base()
-policy.add(didexchangePrompt, 1)
-policy.add(didauthPrompt, 2)
-policy.add(proofexchangePrompt, 3)
+policy.clear()
+prompts.forEach(prompt => policy.add(prompt.prompt))
 
 const oidc = new Provider(config.OIDC_URL, {
   // TODO provide production storage adapter, e.g.
@@ -85,10 +39,12 @@ const oidc = new Provider(config.OIDC_URL, {
 
   // let's tell oidc-provider we also support the email scope, which will contain email and
   // email_verified claims
-  // TODO: think about how to configure arbitrary scopes, or dynamically change and adapt them
+  // TODO: think about how to configure arbitrary scopes or dynamically change and adapt them
+  //       and how to map attributes from/to scopes and proofrequests
+  //       also: how to ignore some scopes, e.g. offline_access in proof-requests
   claims: {
-    openid: ['sub'],
-    email: ['email', 'email_verified']
+    openid: scopeMapper.openid,
+    email: scopeMapper.email
   },
 
   interactions: {
@@ -121,4 +77,4 @@ const oidc = new Provider(config.OIDC_URL, {
 oidc.proxy = true
 oidc.keys = config.SECURE_KEY.split(',')
 
-module.exports = oidc
+module.exports = { prompts, provider: oidc }
