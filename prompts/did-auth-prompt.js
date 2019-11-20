@@ -4,7 +4,7 @@
 'use strict'
 
 const { base } = require('oidc-provider').interactionPolicy
-// const APIUtils = require('../dims-api-utils')
+const APIUtils = require('../dims-api-utils')
 
 const name = 'login'
 
@@ -15,7 +15,8 @@ const render = async (req, res, provider, details, client) => {
   console.log('render login')
   const { uid, prompt, params } = details
 
-  // TODO APIUtils create did-auth request
+  const authrequest = await APIUtils.createDidAuthRequest(uid)
+  console.log(authrequest)
 
   return res.render(name, {
     client,
@@ -25,7 +26,7 @@ const render = async (req, res, provider, details, client) => {
     title: 'Sign-in with DID-Auth',
     flash: 'Please sign in',
     action: name,
-    data: {} // TODO did-auth
+    data: JSON.stringify(authrequest.message)
   })
 }
 
@@ -33,19 +34,30 @@ const callback = async (req, res, next, provider) => {
   console.log('login callback')
   try {
     const { uid, prompt, params } = await provider.interactionDetails(req)
+    console.log(params)
     const client = await provider.Client.find(params.client_id)
 
-    // TODO verify did-auth
-    const account = await provider.Account.findAccount(undefined, req.body.accountId)
+    const authResponse = APIUtils.didAuths[uid]
+    console.log(JSON.stringify(authResponse, null, 4))
+    const account = authResponse && authResponse.meta.isValid
+      ? await provider.Account.findAccount(undefined, authResponse.meta.content.did)
+      : undefined
+    delete APIUtils.didAuths[uid]
+    console.log(account)
+
+    // const account = await provider.Account.findAccount(undefined, req.body.accountId)
 
     if (!account) {
-      return res.render('login', {
+      const authrequest = await APIUtils.createDidAuthRequest(uid)
+      return res.render(name, {
         client,
         uid,
         details: prompt.details,
         params,
         title: 'Sign-in with DID-Auth',
-        flash: 'Please sign in'
+        flash: 'Please sign in',
+        action: name,
+        data: JSON.stringify(authrequest.message)
       })
     }
 

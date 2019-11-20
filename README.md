@@ -12,7 +12,7 @@ See `config.js`
 
 - A configured and running instance of the [dims-api](https://git.snet.tu-berlin.de/blockchain/dims/api)
 
-  NOTE 2019-10-17: tested with the newer protocol versions, i.e. the `develop` branch of [dims-api](https://git.snet.tu-berlin.de/blockchain/dims/api)
+  NOTE 2019-11-20: tested with and requires `v1.x` branch of [dims-api](https://git.snet.tu-berlin.de/blockchain/dims/api)
 
 ## How to run
 

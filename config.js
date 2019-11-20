@@ -35,7 +35,8 @@ exports.DIMS_API_USER = 'OpenIDSSILogin'
 exports.DIMS_API_PASS = 'test123test'
 exports.DIMS_API_WALLET = {
   name: 'openid-ssi-login-wallet',
-  credentials: { key: 'openid-ssi-login-wallet-key' }
+  credentials: { key: 'openid-ssi-login-wallet-key' },
+  seed: '00000000000000000000000000000Kvk'
 }
 exports.DIMS_API_URL = 'http://172.16.0.100:8000/api/'
 exports.DIMS_API_WS = 'ws://172.16.0.100:8000'

@@ -8,6 +8,12 @@ const eventbus = require('./eventbus')
 
 const WS_PING_INTERVAL = 30000 // config.APP_WS_PING_INTERVAL;
 
+const EVENTS = [
+  'connection.established',
+  'didauth.completed',
+  'proof.received'
+]
+
 /**
  * Callback on Pong message from socket
  * Sets its isAlive property to true
@@ -80,8 +86,9 @@ module.exports = httpServer => {
 
   setInterval(livenessCheck, WS_PING_INTERVAL)
 
-  eventbus.on('connection.established', broadcast)
-  eventbus.on('proof.received', broadcast)
+  EVENTS.forEach(event => eventbus.on(event, broadcast))
+  // eventbus.on('connection.established', broadcast)
+  // eventbus.on('proof.received', broadcast)
 
   httpServer.on('upgrade', async (req, socket, head) => {
     console.log('http server received upgrade request')

@@ -6,17 +6,7 @@
         <p><%= flash %></p>
       <% } %>
 
-      <!-- TODO 
-        include qr_exchange 
-      -->
-
-      <!-- TODO 
-        this is a placeholder until proper did-auth exchange is implemented
-      -->
-      <form autocomplete="off" action="/interaction/<%= uid %>/login" method="post">
-        <input required type="text" name="accountId" placeholder="Enter your DID" <% if (!params.login_hint) { %>autofocus="on"<% } else { %> value="<%= params.login_hint %>" <% } %>>
-        <button type="submit" class="login login-submit">Submit</button>
-      </form>
+      <% include qr_exchange %>
     </div>
  
 <% include footer %>
