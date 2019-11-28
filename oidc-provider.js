@@ -42,10 +42,7 @@ const oidc = new Provider(config.OIDC_URL, {
   // TODO: think about how to configure arbitrary scopes or dynamically change and adapt them
   //       and how to map attributes from/to scopes and proofrequests
   //       also: how to ignore some scopes, e.g. offline_access in proof-requests
-  claims: {
-    openid: scopeMapper.openid,
-    email: scopeMapper.email
-  },
+  claims: scopeMapper.supportedScopes,
 
   interactions: {
     // set custom policy with additional prompts for did-exchange/-auth and proof-exchange
@@ -68,6 +65,7 @@ const oidc = new Provider(config.OIDC_URL, {
     // disable the packaged interactions
     devInteractions: { enabled: false },
 
+    // TODO
     encryption: { enabled: true },
     introspection: { enabled: true },
     revocation: { enabled: true }
