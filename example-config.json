@@ -1,5 +1,5 @@
 {
-  "OIDC_CLIENT": [
+  "OIDC_CLIENTS": [
     {
       "client_id": "MedyaMarket",
       "client_secret": "dev-secret",
