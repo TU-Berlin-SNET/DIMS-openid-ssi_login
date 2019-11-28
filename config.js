@@ -3,41 +3,37 @@
  */
 'use strict'
 
-// require('dotenv').config()
+require('dotenv').config()
 
-module.exports = exports = {}
+const CONFIG_PATH = process.env.DIMS_OIDC_PROVIDER_CONFIG_PATH || './example-config.json'
 
-exports.PORT = 3001
+const config = require(CONFIG_PATH)
 
-exports.OIDC_URL = 'http://localhost:3001'
+config.PORT = config.PORT || process.env.DIMS_OIDC_PROVIDER_PORT || 3001
 
-exports.OIDC_CLIENTS = [
-  {
-    client_id: 'MedyaMarket',
-    client_secret: 'dev-secret',
-    redirect_uris: ['http://localhost:3000/cb']
-  },
-  {
-    client_id: 'Pluto',
-    client_secret: 'dev-secret2',
-    redirect_uris: ['http://localhost:3002/cb']
-  }
-]
+config.OIDC_URL = config.OIDC_URL || process.env.DIMS_OIDC_PROVIDER_URL || 'http://localhost:3001'
 
-// Not so secure...
-// TODO: generate your own keys
-// example https://securekey.heroku.com/
-exports.SECURE_KEY = '4pndhwz8dk57la2fqz0rdakseofsnzqbuz8a0vcwirjkpypcb7,59b26bion3ow0o46hkw8laij99sm4gxe766q5iztumy7pz6o2m'
+config.SECURE_KEY = config.SECURE_KEY || process.env.DIMS_OIDC_PROVIDER_SECURE_KEY || 'changeMeSecureKey'
 
-// TODO: do not use such a method for storing passwords, this is only for development purposes
-// API user with trust anchor privileges is needed
-exports.DIMS_API_USER = 'OpenIDSSILogin'
-exports.DIMS_API_PASS = 'test123test'
-exports.DIMS_API_WALLET = {
-  name: 'openid-ssi-login-wallet',
-  credentials: { key: 'openid-ssi-login-wallet-key' },
-  seed: '00000000000000000000000000000Kvk'
+if (!config.DIMS_API_URL || !config.DIMS_API_WS) {
+  const APP_DOMAIN_PROTOCOL = process.env.IDC_API_DOMAIN_PROTOCOL || 'http'
+  const APP_DOMAIN_HOST = process.env.IDC_API_DOMAIN_HOST || '"REPLACE"'
+  const APP_DOMAIN_PORT = process.env.IDC_API_DOMAIN_PORT || 8000
+  const APP_DOMAIN_ENDPOINT = `${APP_DOMAIN_PROTOCOL}://${APP_DOMAIN_HOST}:${APP_DOMAIN_PORT}`
+  config.DIMS_API_URL = config.DIMS_API_URL || APP_DOMAIN_ENDPOINT + '/api/'
+  config.DIMS_API_WS = config.DIMS_API_WS || `ws://${APP_DOMAIN_HOST}:${APP_DOMAIN_PORT}`
 }
-exports.DIMS_API_URL = 'http://172.16.0.100:8000/api/'
-exports.DIMS_API_WS = 'ws://172.16.0.100:8000'
-exports.DIMS_API_POLL_INTERVAL = 1000
+
+config.DIMS_API_POLL_INTERVAL = config.DIMS_API_POLL_INTERVAL || process.env.DIMS_API_POLL_INTERVAL || 1000
+
+config.DIMS_API_USER = config.DIMS_API_USER || process.env.DIMS_OIDC_PROVIDER_API_USER || 'OpenIDSSILogin'
+config.DIMS_API_PASS = config.DIMS_API_PASS || process.env.DIMS_OIDC_PROVIDER_API_PASS || '23092489fh347dqpqoi'
+if (!config.DIMS_API_WALLET) {
+  config.DIMS_API_WALLET = {
+    name: process.env.DIMS_OIDC_PROVIDER_API_WALLET_NAME || 'openid-ssi-login-wallet',
+    credentials: { key: process.env.DIMS_OIDC_PROVIDER_API_WALLET_KEY || 'openid-ssi-login-wallet-key' },
+    seed: process.env.DIMS_OIDC_PROVIDER_API_WALLET_SEED || '00000000000000000000000000000Kvk'
+  }
+}
+
+module.exports = exports = config

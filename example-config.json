@@ -1,0 +1,32 @@
+{
+  "OIDC_CLIENT": [
+    {
+      "client_id": "MedyaMarket",
+      "client_secret": "dev-secret",
+      "redirect_uris": ["http://localhost:3000/cb"]
+    },
+    {
+      "client_id": "Pluto",
+      "client_secret": "dev-secret2",
+      "redirect_uris": ["http://localhost:3002/cb"]
+    }
+  ],
+
+  "PORT": 3001,
+
+  "OIDC_URL": "http://localhost:3001",
+
+  "SECURE_KEY": "4pndhwz8dk57la2fqz0rdakseofsnzqbuz8a0vcwirjkpypcb7,59b26bion3ow0o46hkw8laij99sm4gxe766q5iztumy7pz6o2m",
+
+  "DIMS_API_USER": "OpenIDSSILogin",
+
+  "DIMS_API_PASS": "test123test",
+
+  "DIMS_API_WALLET": {
+    "name": "openid-ssi-login-wallet",
+    "credentials": { "key": "openid-ssi-login-wallet-key" },
+    "seed": "00000000000000000000000000000Kvk"
+  },
+
+  "DIMS_API_POLL_INTERVAL": 1000
+}

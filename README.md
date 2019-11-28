@@ -6,7 +6,8 @@ Implements `2-Step DID-Auth + Proof Exchange` Variation (see [docs/variants.md](
 
 ## Configuration
 
-See `config.js`
+Main configuration is provided using a `.json` file, some configuration can be provided using environment variables.
+See `example-config.json` and `config.js` for more details.
 
 ## Requirements
 
