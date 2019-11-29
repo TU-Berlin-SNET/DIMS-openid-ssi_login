@@ -1,206 +1,253 @@
+/**
+ * DIMS IEA API Utils
+ */
+'use strict'
+
 const axios = require('axios')
-const Constants = require("./constants")
+// const WebSocket = require('ws')
+const eventbus = require('./eventbus')
+const Account = require('./account')
 
-async function fetchTransactions(from, to,token){
-    let headers = {
-        'Content-Type': 'application/json',
-        'Authorization': token
+const {
+  DIMS_API_USER,
+  DIMS_API_PASS,
+  DIMS_API_WALLET,
+  DIMS_API_URL,
+  // DIMS_API_WS,
+  DIMS_API_POLL_INTERVAL
+} = require('./config')
+
+module.exports = exports = {}
+
+const client = axios.create({ baseURL: DIMS_API_URL })
+let token = ''
+let walletInfo
+// let socket
+let checkIsRunning = false
+
+// const pendingRequests = []
+const pendingConnections = []
+const pendingDidAuths = []
+const pendingProofs = []
+const didAuths = {}
+
+/**
+ * Wrap requests to login and try again if they fail the first time
+ * @param {String} method
+ * @param {String} url
+ * @param {Object} data
+ * @return {Promise<Object>} axios request response, may throw error
+ */
+async function apiRequest (method, url, data) {
+  try {
+    const res = await client.request({ method, url, data })
+    return res
+  } catch (err) {
+    if (!err.isAxiosError || err.response.status !== 401) {
+      throw err
     }
-    var result = axios.get(Constants.DIMS_API_URL + "transactions?from="+ from + "&to=" + to, {headers: headers})
-    .then(function (response) {
-        if (response.status === 200) {
-            return(response.data)
-        }
-    }).catch(function (error){
-        console.log(error)
-        return([])
-    })
-    return(result)
+    await exports.login()
+  }
+  // this time, throw if it fails
+  return client.request({ method, url, data })
 }
 
-async function apiLogin(username, pass) {
-    var self = this;
-    var token = null
-    var payload = {
-        "username": username,
-        "password": pass
-    }
-    await axios.post(Constants.DIMS_API_URL + 'login', payload)
-        .then(function (response) {
-            if (response.status === 200) {
-                console.log("Login successfull");
-                token = response.data.token
-
-            }
-            else if (response.status === 204) {
-                console.log("Username password do not match");
-            }
-            else {
-                console.log("Username does not exists");
-            }
-        })
-        .catch(function (error) {
-            console.log(error);
-        });
-        return(token);
+/**
+ * DIMS IEA API GET request with login wrap
+ * @param {String} url
+ * @return {Promise<Object>} axios request response, may throw error
+ */
+async function apiGet (url) {
+  return apiRequest('get', url)
 }
 
-async function apiLogin() {
-    var self = this;
-    var token = null
-    var payload = {
-        "username": Constants.DIMS_API_USER,
-        "password": Constants.DIMS_API_PASS
+/**
+ * DIMS IEA API POST request with login wrap
+ * @param {String} url
+ * @param {Object} [data]
+ * @return {Promise<Object>} axios request response, may throw error
+ */
+async function apiPost (url, data = {}) {
+  return apiRequest('post', url, data)
+}
+
+async function pollPending () {
+  if (checkIsRunning) {
+    return
+  }
+  checkIsRunning = true
+
+  try {
+    const runningOps = []
+    if (pendingConnections.length > 0) {
+      runningOps.push(checkPendingConnections())
     }
-    await axios.post(Constants.DIMS_API_URL + 'login', payload)
-        .then(function (response) {
-            if (response.status === 200) {
-                console.log("Login successfull");
-                token = response.data.token
+    if (pendingDidAuths.length > 0) {
+      runningOps.push(checkPendingDidAuths())
+    }
+    if (pendingProofs.length > 0) {
+      runningOps.push(checkPendingProofs())
+    }
+    await Promise.all(runningOps)
+  } catch (err) {
+    console.log(err)
+    throw err
+  } finally {
+    checkIsRunning = false
+  }
+}
 
-            }
-            else if (response.status === 204) {
-                console.log("Username password do not match");
-            }
-            else {
-                console.log("Username does not exists");
-            }
-        })
-        .catch(function (error) {
-            console.log(error);
-        });
-        return(token);
+async function checkPendingConnections () {
+  const conns = (await apiGet('/wallet/default/connection')).data
+    .filter(conn => conn.metadata.oidcUid && pendingConnections.includes(conn.metadata.oidcUid))
+  await Promise.all(conns.map(async conn => {
+    const uid = conn.metadata.oidcUid
+    const account = await Account.register(conn.their_did)
+    console.log('created account', account)
 
-  /* GET /api/proof
-  */
-  async function listProofs(){
-   var self = this;
-   var headers = {
-    'Content-Type': 'application/json',
-    'Authorization': localStorage.getItem("token") 
-   }
-   await axios.get(Constants.DIMS_API_URL + 'proof' , {headers: headers}).then(function (response) {
-      console.log(response);
-      console.log(response.status);
-      if (response.status === 200) {
-        return(response.data)
+    account.data.myDid = conn.my_did
+    account.data.theirDid = conn.their_did
+    console.log('updated account', account)
+
+    // emit event
+    eventbus.emit('connection.established', { uid, data: conn })
+
+    // remove from pending connections
+    pendingConnections.splice(pendingConnections.indexOf(uid), 1)
+  }))
+}
+
+async function checkPendingDidAuths () {
+  const didauthres = (await apiGet('/didauthresponse')).data
+    .filter(res => res.recipientDid === walletInfo.ownDid && res.meta.oidcUid && pendingDidAuths.includes(res.meta.oidcUid))
+  await Promise.all(didauthres.map(async res => {
+    const uid = res.meta.oidcUid
+
+    // store for reference
+    didAuths[uid] = res
+
+    // emit event
+    eventbus.emit('didauth.completed', { uid, data: res })
+
+    // remove from pending
+    pendingDidAuths.splice(pendingDidAuths.indexOf(uid), 1)
+  }))
+}
+
+async function checkPendingProofs () {
+  for (let i = pendingProofs.length - 1; i >= 0; i--) {
+    const request = pendingProofs[i]
+    const data = await pollPendingRequest(request)
+
+    if (!data || data.status !== 'received') {
+      continue
+    }
+
+    console.log('dims-api-utils: request.data: ', data)
+
+    if (data.isValid) {
+      // find corresponding account with did
+      const account = await Account.findById(undefined, data.did)
+      console.log(account)
+      if (!account) {
+        throw new Error('account not found')
       }
-    }).catch(function (error) {
-    console.log(error);
-  })
 
-// GET wallet/default/connection
-async function listPairwiseConnectionOptions(){
-    var self = this;
-    var headers = {
-        'Content-Type': 'application/json',
-        'Authorization': localStorage.getItem("token")
+      const attrs = Object.assign({}, data.proof.requested_proof.revealed_attrs, data.proof.requested_proof.self_attested_attrs)
+      console.log(attrs)
+
+      // update account with attributes from proof
+      Object.entries(attrs).forEach(entry => {
+        const [key, value] = entry
+        account.data[key] = value
+      })
     }
-    await axios.get(apiBaseUrl + "wallet/default/connection", {headers: headers}).then(function(response){
-        console.log(response);
-        console.log(response.status);
-        if (response.status === 200) {
-          let pairwiseConnections = response.data.map((conn) => {
-              return(
-                {
-                    value: conn.their_did,
-                    label: conn.metadata.username 
-                }
-              )
-          })
-          self.setState({
-              pairwiseConnectionsOptions: pairwiseConnections
-          })
-        }
-      }).catch(function (error) {
-      console.log(error);
-      });
+    // emit event
+    eventbus.emit('proof.received', { uid: request.uid, data })
+
+    // remove from pending requests
+    pendingProofs.splice(i, 1)
+  }
+}
+
+async function pollPendingRequest (request) {
+  try {
+    return (await apiGet(`/${request.type}/${request.id}`)).data
+  } catch (err) {
+    console.log(err.message)
+  }
+}
+
+exports.setup = async () => {
+  try {
+    // try to create the user, ignore if it fails (maybe the user already exists)
+    await client.post('/user', { username: DIMS_API_USER, password: DIMS_API_PASS, wallet: DIMS_API_WALLET })
+  } catch (err) {
+    console.log('create user failed:', err.message)
   }
 
-async function sendProofRequest(){
-    var self = this;
-    var headers = {
-     'Content-Type': 'application/json',
-     'Authorization': localStorage.getItem("token") 
-    }
-   
-   let requestedAttrs = this.state.requested_attributes.reduce(function(map, obj) {
-     map["map"][obj[0].toLowerCase().replace(/\s/g, "_") + "_referent"] = {"name": obj[0].toLowerCase().replace(/\s/g, ""), "restrictions": [{ "cred_def_id": obj[1] }]};
-     map["index"] = map["index"] + 1;
-     return map;
-   }, {"map":{},"index":1})["map"];
-   var payload =  {
-       "recipientDid": this.state.recipientDid,
-       "proofRequest": {
-         "name": this.state.proofRequestName,
-         "version": this.state.proofRequestVersion,
-         "requested_attributes": requestedAttrs,
-         "requested_predicates": { }
-       }
-     }
-    axios.post(apiBaseUrl + 'proofrequest' ,payload, {headers: headers}).then(function (response) {
-     console.log(response);
-     console.log(response.status);
-     if (response.status === 201) {
-       alert("proof request successfully sent")
-     }
-   }).catch(function (error) {
-   //alert(error);
-   //alert(JSON.stringify(payload))
-   console.log(error);
-   });
-   }
+  try {
+    await exports.login()
+  } catch (err) {
+    console.log('login failed: ', err.message)
+    throw err
+  }
 
-   async function verifyProof(){
-    var self = this;
-     var headers = {
-      'Content-Type': 'application/json',
-      'Authorization': localStorage.getItem("token") 
-     }
-     await axios.get(apiBaseUrl + 'proof/' + this.state.proofId , {headers: headers}).then(function (response) {
-        console.log(response);
-        console.log(response.status);
-        if (response.status === 200) {
-          let proof = response.data
-          if(typeof(proof.isValid) == 'undefined'){
-            alert("Verification failed. Please try again!")
-          } else {
-            let isValid = proof.isValid ? "is" : "is not"
-            alert("Proof " + isValid + " valid!")
-        }
-        }
-      }).catch(function (error) {
-      console.log(error);
-    })
-    }
+  walletInfo = (await apiGet('/wallet/default')).data
 
-async function registerUser(username, password){
-    var self = this;
-    var result = "pending"
-    let payload = {
-        "username": username,
-        "password": password,
-        "wallet": {
-          "name": username + "-wallet",
-          "credentials": { "key" : "testkey" }
-        }
-      }
-    await axios.post(Constants.DIMS_API_URL + 'user', payload)
-        .then(function (response) {
-            if (response.status === 201) {
-                console.log("Registration successfull");
-                result = response.data.id
-            } else {
-                console.log("Registration unsuccessfull");
-                result = "Registration unsuccessfulls"
-            }
-        })
-        .catch(function (error) {
-            console.log(error);
-        });
-        return(result);
+  setInterval(pollPending, DIMS_API_POLL_INTERVAL)
+
+  // TODO replace poll with websocket solution
+  // socket = new WebSocket(DIMS_API_WS, { Authorization: token })
+  // socket.on('message', message => {
+  //   console.log('dims api websocket', message)
+  //   const event = JSON.parse(message)
+  //   eventbus.emit(event.name, event)
+  // })
 }
 
-module.exports.fetchTransactions = fetchTransactions
-module.exports.apiLogin = apiLogin
-module.exports.registerUser = registerUser
+exports.login = async () => {
+  const res = await client.post('/login', { username: DIMS_API_USER, password: DIMS_API_PASS })
+  token = res.data.token
+  client.defaults.headers.common.Authorization = token
+}
+
+exports.createConnectionOffer = async (uid, label, meta = {}, data, role) => {
+  meta.oidcUid = uid
+  const offer = (await apiPost('/connectionoffer', { label, meta, data, role, myDid: walletInfo.ownDid })).data
+  pendingConnections.push(uid)
+  // pendingConnections[uid] = true
+  // pendingRequests.push({ uid, id: offer.meta.myDid, type: 'connection' })
+  return offer
+}
+
+exports.createDidAuthRequest = async (uid) => {
+  const didauthRequest = (await apiPost('/didauthrequest', { meta: { oidcUid: uid } })).data
+  pendingDidAuths.push(uid)
+  return didauthRequest
+}
+
+// exports.getConnection = async myDid => {
+//   try {
+//     return apiGet('/connection/' + myDid)
+//   } catch (err) {
+//     if (err.status === 404) {
+//       return false
+//     } else {
+//       throw err
+//     }
+//   }
+// }
+
+exports.createProofrequest = async (uid, recipientDid, comment, proofRequest) => {
+  const data = (await apiPost('/proofrequest', { recipientDid, comment, proofRequest })).data
+  pendingProofs.push({ uid, id: data.meta.proofId, type: 'proof' })
+  // pendingRequests.push({ uid, id: data.meta.proofId, type: 'proof' })
+  return data
+}
+
+exports.didAuths = didAuths
+
+// exports.getProof = async (proofId) => {
+//   return (await apiGet('/proof/' + proofId)).data
+// }

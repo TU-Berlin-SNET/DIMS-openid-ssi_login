@@ -1,0 +1,37 @@
+<% include header %>
+
+    <!-- TODO
+      notify if invalid proof was received
+    -->
+
+    <div class="login-card">
+      <h1><%= title %></h1>
+      <% if (locals.flash) { %>
+        <p><%= flash %></p>
+      <% } %>
+
+      <p>Hey, we need a couple more attributes from you. Proof request is already on the way.</p>
+      <p>Please respond to the proof-request with @id / messageId <%= proofrequestId %></p>
+      <form id="hidden-form" autocomplete="off" action="/interaction/<%= uid %>/<%= action %>" method="post">
+        <input required id="hidden-form-field" type="text" name="form-field" />
+        <button type="submit" class="login login-submit">Submit</button>
+      </form>
+    </div>
+
+    <script async>
+      const uid = '<%- uid %>';
+      const form = document.getElementById('hidden-form');
+      const formField = document.getElementById('hidden-form-field');
+
+      document.cookie = 'X-UID=' + uid + '; path=/';
+      const socket = new WebSocket('ws://'+ window.location.hostname + ':3001');
+
+      socket.onmessage = message => {
+        console.log(message);
+        const event = JSON.parse(message.data)
+        formField.value = event.id;
+        form.submit();
+      };
+    </script>
+
+<% include footer %>
