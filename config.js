@@ -15,9 +15,16 @@ config.OIDC_URL = config.OIDC_URL || process.env.DIMS_OIDC_PROVIDER_URL || 'http
 
 config.SECURE_KEY = config.SECURE_KEY || process.env.DIMS_OIDC_PROVIDER_SECURE_KEY || 'changeMeSecureKey'
 
+if (!config.SUPPORTED_SCOPES) {
+  config.SUPPORTED_SCOPES = {
+    openid: ['sub'],
+    email: ['email', 'email_verified']
+  }
+}
+
 if (!config.DIMS_API_URL || !config.DIMS_API_WS) {
   const APP_DOMAIN_PROTOCOL = process.env.IDC_API_DOMAIN_PROTOCOL || 'http'
-  const APP_DOMAIN_HOST = process.env.IDC_API_DOMAIN_HOST || '"REPLACE"'
+  const APP_DOMAIN_HOST = process.env.IDC_API_DOMAIN_HOST || 'localhost'
   const APP_DOMAIN_PORT = process.env.IDC_API_DOMAIN_PORT || 8000
   const APP_DOMAIN_ENDPOINT = `${APP_DOMAIN_PROTOCOL}://${APP_DOMAIN_HOST}:${APP_DOMAIN_PORT}`
   config.DIMS_API_URL = config.DIMS_API_URL || APP_DOMAIN_ENDPOINT + '/api/'

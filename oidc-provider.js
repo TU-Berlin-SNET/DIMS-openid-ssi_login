@@ -5,7 +5,6 @@
 
 const Provider = require('oidc-provider')
 const config = require('./config')
-const scopeMapper = require('./scope-mapper')
 const Account = require('./account')
 
 // registered prompts, add in order that they should be called
@@ -42,7 +41,7 @@ const oidc = new Provider(config.OIDC_URL, {
   // TODO: think about how to configure arbitrary scopes or dynamically change and adapt them
   //       and how to map attributes from/to scopes and proofrequests
   //       also: how to ignore some scopes, e.g. offline_access in proof-requests
-  claims: scopeMapper.supportedScopes,
+  claims: config.SUPPORTED_SCOPES,
 
   interactions: {
     // set custom policy with additional prompts for did-exchange/-auth and proof-exchange

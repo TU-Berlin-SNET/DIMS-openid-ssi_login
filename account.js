@@ -20,9 +20,13 @@ class Account {
       sub: this.accountId
     })
     // data source is always a proof, therefore email is always verified
+    // same for phone_number
     // TODO what about self attested attributes? this needs better handling
     if (this.data.email) {
       claims.email_verified = true
+    }
+    if (this.data.phone_number) {
+      claims.phone_number_verified = true
     }
     return claims
   }

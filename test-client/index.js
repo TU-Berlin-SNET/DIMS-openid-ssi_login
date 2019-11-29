@@ -6,6 +6,7 @@
 const config = {
   protocol: 'http',
   host: 'localhost',
+  // issuerDiscoveryUrl: 'http://"REPLACE":3001',
   issuerDiscoveryUrl: 'http://localhost:3001',
   port: 3000,
   sessionConfig: {
@@ -42,7 +43,7 @@ const router = new Router()
 async function init () {
   const vcOidcProvider = await Issuer.discover(config.issuerDiscoveryUrl)
   const client = new vcOidcProvider.Client(config.oidcClient)
-  const params = { scope: 'openid profile email' }
+  const params = { scope: 'openid email' }
   const oidcStrategy = new Strategy({ client, params }, (tokenset, userinfo, done) => {
     console.log(tokenset)
     console.log(userinfo)

@@ -4,8 +4,11 @@
 'use strict'
 
 const { Prompt, Check } = require('oidc-provider').interactionPolicy
+const config = require('../config')
 const scopeMapper = require('../scope-mapper')
 const APIUtils = require('../dims-api-utils')
+
+const clientProofRestrictions = config.CLIENT_ATTRIBUTE_RESTRICTIONS || {}
 
 const name = 'proof_exchange'
 
@@ -23,14 +26,13 @@ const prompt = new Prompt(
       const { oidc } = ctx
       const claims = oidc.account && oidc.account.claims()
       const scopes = oidc.params.scope.split(' ')
+      console.log('requested scopes', JSON.stringify(scopes))
 
       // conditions for proof-exchange:
       // a) successful login (did-auth)
       // b) requested scopes can not be fulfilled with currently available claims
-      console.log(oidc.session && oidc.account && !scopes.every(scope => (scopeMapper[scope] || []).every(attr => !!claims[attr] || typeof claims[attr] === 'boolean')))
       return oidc.session && oidc.account &&
-        !scopes.every(scope =>
-          (scopeMapper[scope] || []).every(attr => !!claims[attr] || typeof claims[attr] === 'boolean'))
+        !scopeMapper.fulfillsScopes(claims, scopes)
     }
   )
 )
@@ -39,29 +41,12 @@ const render = async (req, res, provider, details, client) => {
   console.log('proof_exchange render')
   const { uid, prompt, params, session } = details
   const account = await provider.Account.findAccount(undefined, session.accountId)
-  const scopeAttrs = params.scope.split(' ').flatMap(scope => (scopeMapper[scope] || []))
+  const scopes = params.scope.split(' ')
   const claims = account.claims()
-  const missingAttributes = scopeAttrs.filter(attr => !claims[attr] && attr !== 'email_verified')
-  console.log(scopeAttrs, claims, missingAttributes)
+  const missingAttributes = scopeMapper.getMissingAttributes(claims, scopes)
+  console.log(scopes, claims, missingAttributes)
 
-  // eslint-disable-next-line camelcase
-  const requested_attributes = {}
-  for (let i = 0; i < missingAttributes.length; i++) {
-    requested_attributes[missingAttributes[i]] = {
-      name: missingAttributes[i]
-      // restrictions: [{ cred_def_id: config.CRED_DEF_ID }]
-    }
-  }
-  console.log(requested_attributes)
-
-  const proofrequest = await APIUtils.createProofrequest(uid, account.accountId, 'oidc-provider-proof-request', {
-    name: 'OIDC-Proof-Request',
-    version: '0.1',
-    requested_attributes,
-    requested_predicates: {},
-    non_revoked: { to: Math.floor(Date.now() / 1000) }
-  })
-  console.log(proofrequest)
+  const proofrequest = await createProofrequest(uid, account.accountId, missingAttributes, clientProofRestrictions[client.clientId])
 
   return res.render(name, {
     client,
@@ -86,6 +71,31 @@ const callback = async (req, res, next, provider) => {
     console.log(err)
     next(err)
   }
+}
+
+const createProofrequest = async (uid, accountId, missingAttributes, restrictions = {}) => {
+  // eslint-disable-next-line camelcase
+  const requested_attributes = {}
+  for (let i = 0; i < missingAttributes.length; i++) {
+    const attributeName = missingAttributes[i]
+    const requestedAttribute = { name: attributeName }
+    if (restrictions[attributeName]) {
+      requestedAttribute.restrictions = restrictions[attributeName]
+    }
+    requested_attributes[attributeName] = requestedAttribute
+  }
+  console.log(JSON.stringify(requested_attributes, null, 4))
+
+  const proofrequest = await APIUtils.createProofrequest(uid, accountId, 'oidc-provider-proof-request', {
+    name: 'OIDC-Proof-Request',
+    version: '0.1',
+    requested_attributes,
+    requested_predicates: {},
+    non_revoked: { to: Math.floor(Date.now() / 1000) }
+  })
+  console.log(JSON.stringify(proofrequest, null, 4))
+
+  return proofrequest
 }
 
 module.exports = { prompt, render, callback }
