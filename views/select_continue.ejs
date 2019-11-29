@@ -1,0 +1,36 @@
+<% include header %>
+
+<div class="login-card">
+  <h1><%= title %></h1>
+  <% if (locals.flash) { %>
+    <p><%= flash %></p>
+  <% } %>
+
+  <!-- use existing session -->
+  <% if (session && session.accountId) { %>
+  <form autocomplete="off" action="/interaction/<%= uid %>/select_continue" method="post">
+    <button autofocus type="submit" class="login login-submit">Continue as <%= session.accountId %></button>
+  </form>
+  <% } %>
+
+  <!-- switch account / re-login -->
+  <form autocomplete="off" action="/interaction/<%= uid %>/select_continue" method="post">
+    <input type="hidden" name="switch" value="true">
+    <button type="submit" class="login">
+      <% if (session && session.accountId) { %>
+        Switch Account
+      <% } else { %>
+        Login
+      <% } %>
+    </button>
+  </form>
+
+  <!-- register / did-exchange -->
+  <form autocomplete="off" action="/interaction/<%= uid %>/select_continue" method="post">
+    <input type="hidden" name="did_exchange" value="true">
+    <button type="submit" class="login">Register / DID-Exchange</button>
+  </form>
+
+</div>
+
+<% include footer %>
