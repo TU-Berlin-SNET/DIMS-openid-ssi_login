@@ -15,7 +15,7 @@ module.exports = exports = {}
  * @param {scopes} scopes array of scope names
  * @return {Boolean} true if claims can fulfill scopes, false otherwise
  */
-exports.fulfillsScopes = (claims, scopes) => {
+exports.fulfillsScopes = (claims = {}, scopes = []) => {
   return scopes.every(scope =>
     config.SUPPORTED_SCOPES[scope].every(attr =>
       !!claims[attr] || typeof claims[attr] === 'boolean' || attr.endsWith('_verified')))
@@ -30,7 +30,7 @@ exports.fulfillsScopes = (claims, scopes) => {
  * @param {scopes} scopes array of scope names
  * @return {Array} array of attribute names
  */
-exports.getMissingAttributes = (claims, scopes) => {
+exports.getMissingAttributes = (claims = {}, scopes = []) => {
   const scopeAttrs = scopes.flatMap(scope => config.SUPPORTED_SCOPES[scope])
   // exclude fields ending on _verified
   // since attributes are based on indy proofs
